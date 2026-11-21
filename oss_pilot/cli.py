@@ -1,7 +1,7 @@
 import sys
 
 from .core import Stop, discover, home, preferences
-
+from .follow import continue_work
 
 from .workflow import transact
 
@@ -11,7 +11,8 @@ def shortlist(prefs):
     if not issues:
         raise Stop("No matching open, unassigned issues found.")
     for n, issue in enumerate(issues, 1):
-        print(f"{n}. {issue['title']} (updated {issue['updatedAt'][:10]})\n   {issue['url']}")
+        labels = ", ".join(label["name"] for label in issue["labels"][:4])
+        print(f"{n}. {issue['title']} (updated {issue['updatedAt'][:10]})\n   {issue['url']} {labels}".rstrip())
     return issues
 
 
@@ -26,8 +27,10 @@ def menu():
         transact(candidates[0]["url"], prefs)
     elif choice == "3":
         transact(input("Issue URL: ").strip(), prefs)
+    elif choice == "4":
+        continue_work(prefs)
     else:
-        raise Stop("Choose 1, 2, or 3. Follow-up arrives in milestone 3.")
+        raise Stop("Choose a menu item from 1 to 4.")
 
 
 def main():

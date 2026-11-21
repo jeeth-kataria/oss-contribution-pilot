@@ -33,8 +33,13 @@ def evidence(repo, number, login, own_pr=None):
         raise Stop("Open PR references this issue: " + ", ".join(competing))
     pulls = pages(f"repos/{repo}/pulls?state=open&per_page=100")
     return dict(issue=issue["html_url"], title=issue["title"], body=issue["body"],
+                activity_updated_at=issue["updated_at"], author=issue["user"]["login"],
+                author_association=issue["author_association"],
+                assignees=[a["login"] for a in issue["assignees"]],
+                state=issue["state"], locked=issue["locked"], linked_open_prs=competing,
                 labels=[label["name"] for label in issue["labels"]],
-                comments=[(c["html_url"], c["author_association"], c["body"]) for c in comments],
+                comments=[(c["html_url"], c["user"]["login"], c["author_association"], c["body"])
+                          for c in comments],
                 open_prs=[(p["html_url"], p["title"]) for p in pulls if p["html_url"] != own_pr])
 
 
@@ -47,7 +52,7 @@ def checked(report, fields):
         raise Stop(report["reason"] or "Agent could not verify the requirements.")
 
 
-def transact(url, prefs, *, follow=None):
+def transact(url, prefs):
     repo, number = issue_id(url)
     root = home() / "runs" / repo.lower() / str(number)
     root.mkdir(mode=0o700, parents=True, exist_ok=True)
@@ -56,10 +61,10 @@ def transact(url, prefs, *, follow=None):
             fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
             raise Stop(f"Another process is handling {url}.")
-        return work(root, repo, number, url, prefs, follow)
+        return work(root, repo, number, url, prefs)
 
 
-def work(root, repo, number, url, prefs, follow):
+def work(root, repo, number, url, prefs):
     path = root / "state.json"
     state = json.loads(path.read_text()) if path.exists() else {}
     login = run("gh", "api", "user", "--jq", ".login")
@@ -82,10 +87,9 @@ def work(root, repo, number, url, prefs, follow):
             raise Stop(f"Branch already has a PR: {pr['html_url']}")
         state["pr"] = pr["html_url"]
         save(path, state)
-        if follow is None or pr["state"] != "open":
-            print(f"{pr['state'].capitalize()} PR: {state['pr']}")
-            return
-    elif follow is not None or state.get("pr"):
+        print(f"{pr['state'].capitalize()} PR: {state['pr']}")
+        return
+    elif state.get("pr"):
         raise Stop("The saved PR could not be reconciled with GitHub.")
     context = evidence(repo, number, login, state.get("pr"))
     checkout = root / "checkout"
@@ -99,18 +103,20 @@ def work(root, repo, number, url, prefs, follow):
     if not state.get("base_commit"):
         state["base_commit"] = git(checkout, "rev-parse", "HEAD")
         save(path, state)
-    context.update(login=login, preferences=prefs, review_feedback=follow)
+    context.update(login=login, preferences=prefs)
     scout = agent("scout", checkout,
-                  "Inspect project rules, issue activity, similar PRs and proposals, assignment, "
+                  "The coordinator already fetched live GitHub API data with full pagination; use the "
+                  "supplied lists, including empty lists, as evidence. Inspect project rules, issue activity, similar PRs and proposals, assignment, "
                   "reward terms and prerequisites. Stop on a duplicate, unmet requirement, or upfront "
                   "cost. Confirm a reward only from specific authoritative evidence. Cite sources.",
                   context, {"reward_confirmed": "boolean"})
     state["scout"] = scout
     save(path, state)
-    checked(scout, ["reward_confirmed"] if prefs["paid_only"] else [])
-    if follow:
-        context["previous_implementation"] = state.get("implementation")
-    if not state.get("commit") or follow:
+    checked(scout, [])
+    if prefs["paid_only"] and not scout["reward_confirmed"]:
+        raise Stop("Paid-only mode requires a confirmed reward. " + scout["reason"])
+    context["scout"] = scout
+    if not state.get("commit") and not state.get("pending_tree"):
         impl = agent("implementer", checkout,
                      "Implement the selected issue or requested review changes. Inspect any partial "
                      "work already here. Reproduce the issue or demonstrate the requirement, add a "
@@ -123,8 +129,18 @@ def work(root, repo, number, url, prefs, follow):
         git(checkout, "add", "-A")
         if not git(checkout, "diff", "--cached", "--name-only"):
             raise Stop("Implementation produced no changes. " + impl["reason"])
-        git(checkout, "commit", "-m", context["title"])
+        state["pending_tree"] = git(checkout, "write-tree")
+        save(path, state)
+    if state.get("pending_tree"):
+        if git(checkout, "rev-parse", "HEAD") == state["base_commit"]:
+            if git(checkout, "write-tree") != state["pending_tree"]:
+                raise Stop("Staged changes differ from the saved implementation.")
+            git(checkout, "commit", "-m", context["title"])
+        if (git(checkout, "rev-parse", "HEAD^{tree}") != state["pending_tree"]
+                or git(checkout, "rev-parse", "HEAD^") != state["base_commit"]):
+            raise Stop("Local commit differs from the saved implementation.")
         state["commit"] = git(checkout, "rev-parse", "HEAD")
+        del state["pending_tree"]
         save(path, state)
     if git(checkout, "rev-parse", "HEAD") != state["commit"] or git(checkout, "status", "--porcelain"):
         raise Stop("Local checkout differs from the recorded commit.")
@@ -154,14 +170,21 @@ def publish(root, path, state, checkout, context):
     repo, login, branch = state["repo"], state["login"], state["branch"]
     target = repo
     if repo.split("/")[0].lower() != login.lower():
-        target = run("gh", "repo", "fork", repo, "--clone=false", "--remote=false", cwd=checkout)
+        run("gh", "repo", "fork", repo, "--clone=false", "--remote=false", cwd=checkout)
         # Resolve the authenticated user's fork, including renamed forks.
         forks = pages(f"repos/{repo}/forks?per_page=100")
         fork = next((f for f in forks if f["owner"]["login"] == login), None)
         if not fork:
             raise Stop("Could not verify the destination fork.")
         target = fork["full_name"]
-    git(checkout, "push", f"https://github.com/{target}.git", f"{state['commit']}:refs/heads/{branch}")
+    remote = f"https://github.com/{target}.git"
+    ref = f"refs/heads/{branch}"
+    existing = git(checkout, "ls-remote", "--heads", remote, ref)
+    if not existing:
+        # An empty expected SHA atomically reserves a new branch.
+        git(checkout, "push", f"--force-with-lease={ref}:", remote, f"{state['commit']}:{ref}")
+    elif existing.split()[0] != state["commit"]:
+        raise Stop(f"Destination branch already exists at another commit: {target}/{branch}")
     if not state.get("pr"):
         impl = state["implementation"]
         body = (f"Closes {state['issue']}\n\n{impl['reason']}\n\n### Reproduction\n{impl['reproduction']}"

@@ -30,12 +30,14 @@ class Gates(unittest.TestCase):
     @patch("oss_pilot.workflow.run", return_value="https://github.com/me/repo/pull/2")
     @patch("oss_pilot.workflow.git")
     def test_publishes_reviewed_sha_and_evidence(self, git, run):
+        git.return_value = ""
         state = dict(repo="me/repo", login="me", branch="topic", base="main", commit="abc",
                      issue="issue", implementation=dict(reason="summary", reproduction="before", tests="after"),
                      review=dict(tests="independent run"))
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             publish(root, root / "state.json", state, root, dict(title="Fix"))
-            git.assert_called_once_with(root, "push", "https://github.com/me/repo.git", "abc:refs/heads/topic")
+            git.assert_called_with(root, "push", "--force-with-lease=refs/heads/topic:",
+                                   "https://github.com/me/repo.git", "abc:refs/heads/topic")
             self.assertIn("independent run", (root / "pr-body.md").read_text())
             self.assertEqual(state["pr"], run.return_value)

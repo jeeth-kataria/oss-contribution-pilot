@@ -66,4 +66,9 @@ def discover(prefs):
                 if prefs["paid_only"] and not any(w in words for w in ("bounty", "reward", "$", "paid")):
                     continue
                 issues.setdefault(issue["url"], issue)
-    return sorted(issues.values(), key=lambda item: item["updatedAt"], reverse=True)[:10]
+    def rank(issue):
+        labels = {label["name"].lower() for label in issue["labels"]}
+        welcoming = bool(labels & {"good first issue", "help wanted", "up for grabs"})
+        return welcoming, issue["updatedAt"]
+
+    return sorted(issues.values(), key=rank, reverse=True)[:10]
