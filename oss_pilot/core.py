@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -63,7 +64,9 @@ def discover(prefs):
                 if issue["isLocked"]:
                     continue
                 words = " ".join([issue["title"], *(i["name"] for i in issue["labels"])]).lower()
-                if prefs["paid_only"] and not any(w in words for w in ("bounty", "reward", "$", "paid")):
+                if prefs["paid_only"] and not (
+                    any(w in words for w in ("bounty", "reward", "$")) or re.search(r"\bpaid\b", words)
+                ):
                     continue
                 issues.setdefault(issue["url"], issue)
     return sorted(issues.values(), key=lambda item: item["updatedAt"], reverse=True)[:10]
