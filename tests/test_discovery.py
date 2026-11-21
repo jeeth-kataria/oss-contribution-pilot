@@ -17,6 +17,8 @@ class Discovery(unittest.TestCase):
     def test_paid_only_matches_paid_as_a_standalone_word(self, gh):
         paid = dict(url="u", title="[Paid] Fix bug", updatedAt="2026", labels=[], isLocked=False)
         unpaid = dict(paid, url="v", title="Unpaid bug fix")
-        gh.return_value = [paid, unpaid]
+        paid_label = dict(paid, url="x", title="Fix bug", labels=[{"name": "paid"}])
+        unpaid_label = dict(paid_label, url="y", labels=[{"name": "unpaid"}])
+        gh.return_value = [paid, unpaid, paid_label, unpaid_label]
         prefs = dict(topics=["inference"], languages=["Python"], paid_only=True)
-        self.assertEqual(discover(prefs), [paid])
+        self.assertEqual(discover(prefs), [paid, paid_label])
