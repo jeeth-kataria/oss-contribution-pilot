@@ -3,6 +3,9 @@ import sys
 from .core import Stop, discover, home, preferences
 
 
+from .workflow import transact
+
+
 def shortlist(prefs):
     issues = discover(prefs)
     if not issues:
@@ -18,8 +21,13 @@ def menu():
     choice = input("> ").strip()
     if choice == "1":
         shortlist(prefs)
+    elif choice == "2":
+        candidates = shortlist(prefs)
+        transact(candidates[0]["url"], prefs)
+    elif choice == "3":
+        transact(input("Issue URL: ").strip(), prefs)
     else:
-        raise Stop("The discovery milestone supports choice 1.")
+        raise Stop("Choose 1, 2, or 3. Follow-up arrives in milestone 3.")
 
 
 def main():
