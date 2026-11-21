@@ -56,10 +56,12 @@ def discover(prefs):
     issues = {}
     for topic in prefs["topics"]:
         for language in prefs["languages"]:
-            matches = gh("search", "issues", topic, "--language", language, "--state", "open",
-                         "--visibility", "public", "--no-assignee", "--archived=false",
-                         "--sort", "updated", "--limit", "8", "--json",
-                         "url,title,labels,updatedAt,isLocked")
+            query = ("search", "issues", "--language", language, "--state", "open",
+                     "--visibility", "public", "--no-assignee", "--archived=false",
+                     "--sort", "updated", "--limit", "8", "--json", "url,title,labels,updatedAt,isLocked")
+            matches = gh(*query, "--label", "help wanted", "--", topic)
+            if not matches:
+                matches = gh(*query, "--", topic)
             for issue in matches:
                 if issue["isLocked"]:
                     continue
