@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OSS Pilot · The one-second deadline</title>
+<meta name="description" content="Replay a real Firecrawl SDK bug and see the same regression test run on both sides of its fix.">
+<meta name="theme-color" content="#f7f8f4"><link rel="icon" href="data:,"><link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header><div class="wrap navbar"><a class="brand" href="./"><span class="mark" aria-hidden="true">▥</span> OSS Pilot</a><nav><a href="#try">Try the CLI</a><a href="https://github.com/jeeth-kataria/oss-contribution-pilot">GitHub</a></nav></div></header>
+<main class="wrap">
+<section class="hero">
+<div class="intro"><p class="eyebrow">Firecrawl / Python SDK</p><h1>The caller allowed <span id="deadline-title">1 second.</span><br>The SDK waited <em id="wait-title">10.</em></h1>
+<p class="lead">One regression test, run against both versions. Watch what happened when a polling interval outlasted the caller’s deadline.</p>
+<button class="primary" id="replay" disabled><span aria-hidden="true">▶</span> Replay the failing test</button></div>
+<figure class="plot" aria-labelledby="plot-title"><figcaption><div><p class="micro">Recorded test</p><h2 id="plot-title">Polling timeline</h2></div><output id="clock" aria-label="Current simulated time">—</output></figcaption>
+<div id="tracks" aria-label="Test run comparison"></div>
+<div class="axis"><span>0 s</span><span id="axis-mid"></span><span id="axis-end"></span></div>
+<p class="plotnote">Simulated seconds · both traces share one scale</p>
+<div class="keys"><span><i class="point"></i>Status request</span><span><i class="rule"></i>Deadline</span></div>
+</figure></section>
+<section class="evidence" id="evidence"><div><p class="eyebrow">The assertion</p><h2>Did polling stop<br>at the deadline?</h2><p id="verdict" role="status">Loading the recorded test…</p></div>
+<div class="evidence-body"><code id="assertion" class="assertion"></code><p id="explanation"></p><div class="links"><a id="report-link" href="deadline.html">Open the run report</a><a href="events.json">Captured events</a><a href="https://github.com/firecrawl/firecrawl/pull/5944/files">Historical patch</a></div></div></section>
+<section id="try"><p class="eyebrow">Try it on your fix</p><h2>Would your test catch the old bug?</h2><p>In your Python project’s active test environment, install the CLI and select a committed pytest regression test.</p>
+<pre><code>python -m pip install git+https://github.com/jeeth-kataria/oss-contribution-pilot.git
+oss-pilot prove --base origin/main --test tests/test_timeout.py::test_deadline</code></pre>
+<p>Open the generated HTML report to inspect the revisions, assertion, and test output. You choose whether to share it.</p>
+<div class="links"><a href="https://github.com/jeeth-kataria/oss-contribution-pilot#readme">How it works</a><a href="#more">Two more runs</a><a href="walkthrough.mp4">Watch the 45-second walkthrough</a></div>
+</section>
+<section id="more"><h2>Two more runs</h2>
+<div class="cases"><article><h3>Firecrawl · Pagination</h3><p>A failed continuation page should preserve the documents already collected and the URL needed to retry. Three older tests expected a private helper’s previous return format. The selected regression checks the caller-visible result.</p><a href="pagination.html">Inspect the pagination report</a></article>
+<article><h3>Humanize · An independent checkout</h3><p>Inspect the same command’s result on another Python repository, including the selected test and its output on both revisions.</p><a href="independent.html">Inspect the independent run</a></article></div></section></main><footer><div class="wrap">OSS Contribution Pilot · Built by <a href="https://github.com/jeeth-kataria">Jeeth Kataria</a></div></footer>
+<script defer src="replay.js"></script>
+</body></html>
