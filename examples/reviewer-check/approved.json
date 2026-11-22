@@ -1,0 +1,9 @@
+{
+  "report": {
+    "proceed": true,
+    "reason": "Approved. The full diff changes twice(n) to return n * 2 and adds one integer regression test. I found no unrelated files or tracked contribution rules. HEAD matched the submitted commit and the working tree was clean. The committed test covers integers, and I verified fractional results independently.",
+    "tests": "`python3 -B -m unittest discover -v` \u2014 exit 0, 1 test passed.\n`python3 -B -c 'from calc import twice; from decimal import Decimal; from fractions import Fraction; cases = [(1.25, 2.5), (-0.75, -1.5), (Decimal(\"0.125\"), Decimal(\"0.250\")), (Fraction(1, 3), Fraction(2, 3))]; assert all(type(twice(n)) is type(expected) and twice(n) == expected for n, expected in cases); print(\"4 fractional cases passed\")'` \u2014 exit 0, all 4 cases preserved the expected value and type.\n`git diff --check 6340bf0d8a7211580d896946f2b6e1009703c188..1ae0ceeb472707ba8f8b154cec32fa3c27175aa9` \u2014 exit 0, no whitespace errors."
+  },
+  "diff": "diff --git a/calc.py b/calc.py\nindex de02aa3..7eaf2a1 100644\n--- a/calc.py\n+++ b/calc.py\n@@ -1 +1 @@\n-def twice(n): return n + 1\n+def twice(n): return n * 2\ndiff --git a/test_calc.py b/test_calc.py\nnew file mode 100644\nindex 0000000..b3e613d\n--- /dev/null\n+++ b/test_calc.py\n@@ -0,0 +1,4 @@\n+import unittest\n+from calc import twice\n+class TestCalc(unittest.TestCase):\n+    def test_integer(self): self.assertEqual(twice(3), 6)",
+  "blocked": false
+}

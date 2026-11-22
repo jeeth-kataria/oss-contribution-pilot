@@ -1,0 +1,9 @@
+{
+  "report": {
+    "proceed": false,
+    "reason": "The full diff changes only calc.py and test_calc.py. No contribution rules were present in the checkout. The integer fix passes, but int(n * 2) truncates fractional results. twice(1.75) returns 3 instead of 3.5, so the commit fails an explicit requirement.",
+    "tests": "`python3 -B -m unittest discover -v` exited 0 with 1 test passed (test_integer).\n`python3 -B -c 'from calc import twice; actual = twice(1.75); assert actual == 3.5, f\"twice(1.75): expected 3.5, got {actual!r}\"'` exited 1 with `AssertionError: twice(1.75): expected 3.5, got 3`.\n`git diff --check fe20092965353be31664bae10aae8aa0d48f280a..2cab6eabed82062870d4145e853d5f747376382a` exited 0 with no whitespace errors."
+  },
+  "diff": "diff --git a/calc.py b/calc.py\nindex de02aa3..df5d90f 100644\n--- a/calc.py\n+++ b/calc.py\n@@ -1 +1 @@\n-def twice(n): return n + 1\n+def twice(n): return int(n * 2)\ndiff --git a/test_calc.py b/test_calc.py\nnew file mode 100644\nindex 0000000..b3e613d\n--- /dev/null\n+++ b/test_calc.py\n@@ -0,0 +1,4 @@\n+import unittest\n+from calc import twice\n+class TestCalc(unittest.TestCase):\n+    def test_integer(self): self.assertEqual(twice(3), 6)",
+  "blocked": true
+}

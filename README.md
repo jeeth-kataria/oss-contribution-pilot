@@ -2,6 +2,23 @@
 
 `oss-pilot` finds open-source issues, prepares a change in its own checkout, and opens a pull request after a second Codex session reviews the diff and reruns the tests. Discovery is read-only. A contribution run can open one upstream PR.
 
+## Can the reviewer catch a bug when the tests pass?
+
+Both patches passed `twice(3) == 6`. The issue also required doubling fractional inputs. In this controlled experiment, we seeded each patch, simulated the GitHub issue, and gave a fresh Codex reviewer its own checkout. Each reviewer chose its own additional checks.
+
+| Patch | What the reviewer observed | Verdict and evidence |
+| --- | --- | --- |
+| `int(n * 2)` | `twice(1.75)` returned `3` instead of `3.5`. | [Rejected · diff and test commands](examples/reviewer-check/rejected.json) |
+| `n * 2` | Four fractional inputs retained their expected values and types, including `Decimal` and `Fraction`. | [Approved · diff and test commands](examples/reviewer-check/approved.json) |
+
+Replay from the repository root with Git configured and the Codex CLI signed in through ChatGPT. The fixture prints fresh verdicts and intercepts publication. [Replay source](examples/reviewer-check/replay.py)
+
+```sh
+python3 examples/reviewer-check/replay.py
+```
+
+For an end-to-end run, see the issue the pilot fixed on its own repository, including the follow-up commit addressing review feedback. [Merged PR #2](https://github.com/jeeth-kataria/oss-contribution-pilot/pull/2)
+
 ## Run locally
 
 Use macOS or Linux, Python 3.10+, Git, an authenticated GitHub CLI, and a Git identity for commits. Discovery needs GitHub access. Implementation and review also need the Codex CLI with support for `exec --ignore-user-config --output-schema` and an existing ChatGPT login. Agent runs use that account’s available usage.
