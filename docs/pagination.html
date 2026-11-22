@@ -1,0 +1,66 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reproduced before, passed after</title><style>body{max-width:60rem;margin:auto;padding:3vw;font:17px/1.5 system-ui;color:#152e37}h1{line-height:1.1}section{border-top:1px solid #acbdc0;margin:2rem 0}pre,code{white-space:pre-wrap;overflow-wrap:anywhere}summary{cursor:pointer}</style><main><p>OSS Contribution Pilot · Regression proof</p><h1>Reproduced before, passed after</h1><p>The same selection failed on the base and passed on the fix.</p><code>firecrawl/__tests__/unit/v2/methods/test_pagination.py::test_resume_failed_crawl_page[http-sync]</code><section><h2>Base</h2><code>41b36dfd28ad69df7da221d1d51f3d5fb4838be3</code> · 0.79 s<pre>firecrawl/__tests__/unit/v2/methods/test_pagination.py::test_resume_failed_crawl_page[http-sync]  failed  AssertionError: assert None == &#x27;https://api.firecrawl.dev/v2/crawl/crawl-123?skip=2&#x27;
+ +  where None = CrawlJob(id=&#x27;crawl-123&#x27;, status=&#x27;completed&#x27;, total=3, completed=3, credits_used=0, expires_at=None, next=None, warning...one, warning=None, change_tracking=None, branding=None, product=None, menu=None, pages=None, blocks=None, tools=None)]).next</pre><details><summary>Command and output</summary><pre>python -m pytest -raP -q -- &#x27;firecrawl/__tests__/unit/v2/methods/test_pagination.py::test_resume_failed_crawl_page[http-sync]&#x27;
+&lt;local&gt;/lib/python3.12/site-packages/pytest_asyncio/plugin.py:306: PytestDeprecationWarning: The configuration option &quot;asyncio_default_fixture_loop_scope&quot; is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to &quot;function&quot; scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: &quot;function&quot;, &quot;class&quot;, &quot;module&quot;, &quot;package&quot;, &quot;session&quot;. Set it to &quot;fixture-scope&quot; to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________________ test_resume_failed_crawl_page[http-sync] ___________________
+
+async_client = False, failure = &#x27;http&#x27;
+caplog = &lt;_pytest.logging.LogCaptureFixture object at 0x107be5010&gt;
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(&quot;async_client&quot;, [False, True], ids=[&quot;sync&quot;, &quot;async&quot;])
+    @pytest.mark.parametrize(&quot;failure&quot;, [&quot;http&quot;, &quot;transport&quot;, &quot;invalid_json&quot;, &quot;error_payload&quot;, &quot;invalid_shape&quot;])
+    async def test_resume_failed_crawl_page(async_client, failure, caplog):
+        job_id = &quot;crawl-123&quot;
+        path = f&quot;/v2/crawl/{job_id}&quot;
+        second_url = f&quot;https://api.firecrawl.dev{path}?skip=1&quot;
+        third_url = f&quot;https://api.firecrawl.dev{path}?skip=2&quot;
+    
+        def page(markdown, next_url):
+            response = Mock(ok=True, status_code=200)
+            response.json.return_value = {
+                &quot;success&quot;: True, &quot;status&quot;: &quot;completed&quot;, &quot;completed&quot;: 3, &quot;total&quot;: 3,
+                &quot;data&quot;: [{&quot;markdown&quot;: markdown}], &quot;next&quot;: next_url,
+            }
+            return response
+    
+        failed = Mock(ok=failure != &quot;http&quot;, status_code=503 if failure == &quot;http&quot; else 200)
+        if failure == &quot;transport&quot;:
+            failed = httpx.ConnectError(third_url) if async_client else requests.ConnectionError(third_url)
+        elif failure == &quot;invalid_shape&quot;:
+            failed.json.return_value = []
+        elif failure == &quot;invalid_json&quot;:
+            failed.json.side_effect = ValueError(&quot;Invalid JSON&quot;)
+        elif failure == &quot;error_payload&quot;:
+            failed.json.return_value = {&quot;success&quot;: False, &quot;error&quot;: &quot;Page unavailable&quot;}
+    
+        client = AsyncMock() if async_client else Mock()
+        client.get.side_effect = [page(&quot;one&quot;, second_url), page(&quot;two&quot;, third_url), failed, page(&quot;three&quot;, None)]
+        partial = await get_crawl_status_async(client, job_id) if async_client else get_crawl_status(client, job_id)
+        assert partial.status == &quot;completed&quot;
+&gt;       assert partial.next == third_url
+E       AssertionError: assert None == &#x27;https://api.firecrawl.dev/v2/crawl/crawl-123?skip=2&#x27;
+E        +  where None = CrawlJob(id=&#x27;crawl-123&#x27;, status=&#x27;completed&#x27;, total=3, completed=3, credits_used=0, expires_at=None, next=None, warning...one, warning=None, change_tracking=None, branding=None, product=None, menu=None, pages=None, blocks=None, tools=None)]).next
+
+firecrawl/__tests__/unit/v2/methods/test_pagination.py:930: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  firecrawl:crawl.py:338 Failed to fetch next page
+=========================== short test summary info ============================
+FAILED firecrawl/__tests__/unit/v2/methods/test_pagination.py::test_resume_failed_crawl_page[http-sync]
+1 failed in 0.49s
+</pre></details></section><section><h2>Fix</h2><code>8ed7d21b3fa2bb63a933c8ed37a0a5a9109a0bdc</code> · 0.74 s<pre>firecrawl/__tests__/unit/v2/methods/test_pagination.py::test_resume_failed_crawl_page[http-sync]  passed  </pre><details><summary>Command and output</summary><pre>python -m pytest -raP -q -- &#x27;firecrawl/__tests__/unit/v2/methods/test_pagination.py::test_resume_failed_crawl_page[http-sync]&#x27;
+&lt;local&gt;/lib/python3.12/site-packages/pytest_asyncio/plugin.py:306: PytestDeprecationWarning: The configuration option &quot;asyncio_default_fixture_loop_scope&quot; is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to &quot;function&quot; scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: &quot;function&quot;, &quot;class&quot;, &quot;module&quot;, &quot;package&quot;, &quot;session&quot;. Set it to &quot;fixture-scope&quot; to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.                                                                        [100%]
+==================================== PASSES ====================================
+___________________ test_resume_failed_crawl_page[http-sync] ___________________
+------------------------------ Captured log call -------------------------------
+WARNING  firecrawl:crawl.py:364 Failed to fetch next page
+1 passed in 0.44s
+</pre></details></section></main></html>

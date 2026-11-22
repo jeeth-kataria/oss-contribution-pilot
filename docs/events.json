@@ -1,0 +1,36 @@
+{
+  "base": [
+    {
+      "kind": "request",
+      "at": 0
+    },
+    {
+      "kind": "sleep",
+      "at": 0,
+      "duration": 10
+    },
+    {
+      "kind": "request",
+      "at": 10
+    },
+    {
+      "kind": "completed",
+      "at": 10
+    }
+  ],
+  "fix": [
+    {
+      "kind": "request",
+      "at": 0
+    },
+    {
+      "kind": "sleep",
+      "at": 0,
+      "duration": 1
+    },
+    {
+      "kind": "timeout",
+      "at": 1
+    }
+  ]
+}

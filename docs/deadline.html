@@ -1,0 +1,65 @@
+<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Reproduced before, passed after</title><style>body{max-width:60rem;margin:auto;padding:3vw;font:17px/1.5 system-ui;color:#152e37}h1{line-height:1.1}section{border-top:1px solid #acbdc0;margin:2rem 0}pre,code{white-space:pre-wrap;overflow-wrap:anywhere}summary{cursor:pointer}</style><main><p>OSS Contribution Pilot · Regression proof</p><h1>Reproduced before, passed after</h1><p>The same selection failed on the base and passed on the fix.</p><code>test_wait_trace.py::test_deadline</code><section><h2>Base</h2><code>41b36dfd28ad69df7da221d1d51f3d5fb4838be3</code> · 0.96 s<pre>test_wait_trace.py::test_deadline  failed  AssertionError: assert (&#x27;completed&#x27;, 10, 2) == (&#x27;timeout&#x27;, 1, 1)
+  
+  At index 0 diff: &#x27;completed&#x27; != &#x27;timeout&#x27;
+  Use -v to get more diff</pre><details><summary>Command and output</summary><pre>python -m pytest -raP -q -- test_wait_trace.py::test_deadline
+&lt;local&gt;/lib/python3.12/site-packages/pytest_asyncio/plugin.py:306: PytestDeprecationWarning: The configuration option &quot;asyncio_default_fixture_loop_scope&quot; is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to &quot;function&quot; scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: &quot;function&quot;, &quot;class&quot;, &quot;module&quot;, &quot;package&quot;, &quot;session&quot;. Set it to &quot;fixture-scope&quot; to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+F                                                                        [100%]
+=================================== FAILURES ===================================
+________________________________ test_deadline _________________________________
+
+monkeypatch = &lt;_pytest.monkeypatch.MonkeyPatch object at 0x103f88b00&gt;
+
+    def test_deadline(monkeypatch):
+        events = []
+        now = 0
+    
+        def sleep(duration):
+            nonlocal now
+            events.append(dict(kind=&quot;sleep&quot;, at=now, duration=duration))
+            now += duration
+    
+        def get(*args, **kwargs):
+            status = &quot;completed&quot; if events else &quot;scraping&quot;
+            events.append(dict(kind=&quot;request&quot;, at=now))
+            response = Mock(ok=True, status_code=200)
+            response.json.return_value = dict(success=True, status=status, data=[], total=1,
+                                              completed=int(status == &quot;completed&quot;), creditsUsed=0)
+            return response
+    
+        client = Firecrawl(api_key=&quot;fc-test&quot;)
+        monkeypatch.setattr(crawl, &quot;time&quot;, Mock(monotonic=lambda: now, sleep=sleep))
+        monkeypatch.setattr(client._v2_client.http_client, &quot;get&quot;, get)
+        try:
+            client.wait_crawl(&quot;test-job&quot;, timeout=1, poll_interval=10, request_timeout=3)
+            outcome = &quot;completed&quot;
+        except CrawlJobTimeoutError:
+            outcome = &quot;timeout&quot;
+        events.append(dict(kind=outcome, at=now))
+        print(&quot;POLL_TRACE&quot;, json.dumps(events))
+&gt;       assert (outcome, now, sum(e[&quot;kind&quot;] == &quot;request&quot; for e in events)) == (&quot;timeout&quot;, 1, 1)
+E       AssertionError: assert (&#x27;completed&#x27;, 10, 2) == (&#x27;timeout&#x27;, 1, 1)
+E         
+E         At index 0 diff: &#x27;completed&#x27; != &#x27;timeout&#x27;
+E         Use -v to get more diff
+
+test_wait_trace.py:37: AssertionError
+----------------------------- Captured stdout call -----------------------------
+POLL_TRACE [{&quot;kind&quot;: &quot;request&quot;, &quot;at&quot;: 0}, {&quot;kind&quot;: &quot;sleep&quot;, &quot;at&quot;: 0, &quot;duration&quot;: 10}, {&quot;kind&quot;: &quot;request&quot;, &quot;at&quot;: 10}, {&quot;kind&quot;: &quot;completed&quot;, &quot;at&quot;: 10}]
+=========================== short test summary info ============================
+FAILED test_wait_trace.py::test_deadline - AssertionError: assert (&#x27;completed...
+1 failed in 0.56s
+</pre></details></section><section><h2>Fix</h2><code>0f29c9916b5f3de3833ff9bb1784651205e624cc</code> · 0.69 s<pre>test_wait_trace.py::test_deadline  passed  </pre><details><summary>Command and output</summary><pre>python -m pytest -raP -q -- test_wait_trace.py::test_deadline
+&lt;local&gt;/lib/python3.12/site-packages/pytest_asyncio/plugin.py:306: PytestDeprecationWarning: The configuration option &quot;asyncio_default_fixture_loop_scope&quot; is unset.
+The event loop scope for asynchronous fixtures will default to the fixture scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to &quot;function&quot; scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: &quot;function&quot;, &quot;class&quot;, &quot;module&quot;, &quot;package&quot;, &quot;session&quot;. Set it to &quot;fixture-scope&quot; to keep the current behavior.
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+.                                                                        [100%]
+==================================== PASSES ====================================
+________________________________ test_deadline _________________________________
+----------------------------- Captured stdout call -----------------------------
+POLL_TRACE [{&quot;kind&quot;: &quot;request&quot;, &quot;at&quot;: 0}, {&quot;kind&quot;: &quot;sleep&quot;, &quot;at&quot;: 0, &quot;duration&quot;: 1}, {&quot;kind&quot;: &quot;timeout&quot;, &quot;at&quot;: 1}]
+1 passed in 0.41s
+</pre></details></section></main></html>

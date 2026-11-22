@@ -2,6 +2,25 @@
 
 `oss-pilot` finds open-source issues, prepares a change in its own checkout, and opens a pull request after a second Codex session reviews the diff and reruns the tests. Discovery is read-only. A contribution run can open one upstream PR.
 
+## Would this test have caught the bug?
+
+In a recorded Firecrawl SDK run, a caller allowed one second. The old code slept ten simulated seconds and issued a second status request. With the fix, the same test observed one request and a timeout at one second. [Replay both runs](https://oss-pilot-prove.jeethkataria9999.chatgpt.site) · [Inspect the exact assertion](examples/deadline-proof/test_wait_trace.py)
+
+### Try it on your fix
+
+In your project's active Python 3.10+ environment, with Git, pytest and the project's test dependencies installed, run:
+
+```sh
+python -m pip install git+https://github.com/jeeth-kataria/oss-contribution-pilot.git
+oss-pilot prove --base origin/main --test tests/test_timeout.py::test_deadline
+```
+
+The command tests committed HEAD and its merge base with the supplied revision. Run it from the usual project test directory, including a package subdirectory in a monorepo. It copies the selected test file from HEAD into the base worktree. Other fixtures and implementation files come from their respective revisions. A file selector runs every test in the file; a node selector narrows the report to one test or parameter case.
+
+Open the printed HTML path to see the revision IDs, selected tests, assertions and output. Use `--output proof.html` for a chosen destination and `--timeout 60` for a per-revision time limit. Exit status 0 means the selected behavioral assertion failed on the base and the selection passed on the fix. Other outcomes return 1 and explain why. Reports are local and include captured test output; inspect it before sharing. This command uses your existing environment and runs ordinary project test code without a Codex or GitHub login.
+
+[Firecrawl pagination report](docs/pagination.html) · [Independent run on humanize’s negative file-size formatting fix](docs/independent.html)
+
 ## Can the reviewer catch a bug when the tests pass?
 
 Both patches passed `twice(3) == 6`. The issue also required doubling fractional inputs. In this controlled experiment, we seeded each patch, simulated the GitHub issue, and gave a fresh Codex reviewer its own checkout. Each reviewer chose its own additional checks.
@@ -59,6 +78,7 @@ Preferences and run records live in `~/.local/share/oss-pilot`. Set `OSS_PILOT_H
 ## Test
 
 ```sh
+python3 -m pip install pytest
 python3 -m unittest discover -s tests -v
 ```
 

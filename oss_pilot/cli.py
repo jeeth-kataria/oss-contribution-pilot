@@ -35,6 +35,9 @@ def menu():
 
 def main():
     try:
+        if sys.argv[1:2] == ["prove"]:
+            from .prove import prove
+            return prove(sys.argv[2:])
         menu()
     except (Stop, OSError, ValueError, KeyboardInterrupt, EOFError) as error:
         print(f"Stopped: {error or 'input cancelled'}", file=sys.stderr)
